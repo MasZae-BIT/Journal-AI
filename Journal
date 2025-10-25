@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jurnal Search Engine dengan IBM Granite</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #0f2027, #203a43, #2c5364);
+      color: #e8e8e8;
+      overflow-x: hidden;
+      background-attachment: fixed;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 35px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      animation: fadeIn 1s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 30px;
+      background: linear-gradient(90deg, #00e0ff, #008cff, #66ffff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 12px rgba(0, 153, 255, 0.5);
+    }
+
+    .search-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .search-bar, .filter-select {
+      flex: 1;
+      min-width: 150px;
+      padding: 12px 15px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      transition: 0.3s;
+    }
+
+    .search-bar::placeholder { color: #aaa; }
+
+    .search-bar:focus, .filter-select:focus {
+      outline: none;
+      border-color: #00ccff;
+      box-shadow: 0 0 8px #00ccff;
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .chat-button {
+      padding: 12px 25px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(90deg, #0099ff, #00ccff);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 0 10px rgba(0, 204, 255, 0.4);
+      white-space: nowrap;
+      height: 48px;
+    }
+
+    .chat-button:hover {
+      background: linear-gradient(90deg, #00ccff, #0099ff);
+      box-shadow: 0 0 20px rgba(0, 204, 255, 0.7);
+    }
+
+    .result-item {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 15px;
+      padding: 22px;
+      margin-top: 25px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .result-title { font-size: 21px; font-weight: 600; margin-bottom: 5px; }
+    .result-link { color: #00ccff; text-decoration: none; }
+    .result-link:hover { color: #66ffff; }
+
+    .result-authors { font-size: 14px; color: #ddd; margin-bottom: 10px; }
+    .result-summary { color: #ccc; font-size: 15px; line-height: 1.6; }
+
+    .result-source {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #8abbd8;
+      font-weight: bold;
+      background: rgba(0, 204, 255, 0.1);
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 204, 255, 0.3);
+    }
+
+    .ai-button {
+      margin-top: 10px;
+      background: linear-gradient(90deg, #0099ff, #00ccff);
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .ai-button:hover {
+      background: linear-gradient(90deg, #00ccff, #0099ff);
+    }
+
+    .ai-response {
+      background: rgba(0, 204, 255, 0.08);
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 15px;
+      color: #d9f8ff;
+      display: none;
+    }
+
+    select option { background-color: #1c1f26; color: white; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Jurnal Search Engine dengan IBM Granite</h1>
+
+    <div class="search-controls">
+      <input type="text" class="search-bar" id="searchQuery" placeholder="Cari judul jurnal...">
+      <select class="filter-select" id="sourceSelect">
+        <option value="semantic">Semantic Scholar</option>
+        <option value="crossref">CrossRef</option>
+        <option value="doaj">DOAJ</option>
+        <option value="core">CORE</option>
+        <option value="pubmed">PubMed</option>
+        <option value="both">Gabungkan Semua</option>
+      </select>
+      <button class="chat-button" onclick="searchJournals()">🔍 Cari</button>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    async function fetchSemanticScholar(query) {
+      const res = await fetch(`https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=5&fields=title,authors,url,abstract`);
+      const data = await res.json();
+      return data.data.map(p => ({
+        title: p.title,
+        authors: p.authors.map(a => a.name).join(', '),
+        summary: p.abstract || "Tidak ada ringkasan tersedia.",
+        link: p.url,
+        source: "Semantic Scholar"
+      }));
+    }
+
+    async function fetchCrossRef(query) {
+      const res = await fetch(`https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=5`);
+      const data = await res.json();
+      return data.message.items.map(p => ({
+        title: p.title ? p.title[0] : "Tanpa Judul",
+        authors: p.author ? p.author.map(a => a.given + " " + a.family).join(', ') : "Tidak diketahui",
+        summary: p.abstract ? p.abstract.replace(/<[^>]+>/g, '') : "Tidak ada abstrak",
+        link: p.URL,
+        source: "CrossRef"
+      }));
+    }
+
+    async function fetchDOAJ(query) {
+      const res = await fetch(`https://doaj.org/api/v2/search/articles/${encodeURIComponent(query)}`);
+      const data = await res.json();
+      return data.results.map(p => ({
+        title: p.bibjson.title,
+        authors: p.bibjson.author ? p.bibjson.author.map(a => a.name).join(', ') : "Tidak diketahui",
+        summary: p.bibjson.abstract || "Tidak ada abstrak.",
+        link: p.bibjson.link[0]?.url || "#",
+        source: "DOAJ"
+      }));
+    }
+
+    async function fetchCORE(query) {
+      const res = await fetch(`https://api.core.ac.uk/v3/search/${encodeURIComponent(query)}`);
+      const data = await res.json();
+      return data.results ? data.results.map(p => ({
+        title: p.title || "Tanpa Judul",
+        authors: p.authors || "Tidak diketahui",
+        summary: p.description || "Tidak ada abstrak.",
+        link: p.downloadUrl || "#",
+        source: "CORE"
+      })) : [];
+    }
+
+    async function fetchPubMed(query) {
+      const res = await fetch(`https://api.ncbi.nlm.nih.gov/lit/ctxp/v1/pubmed/?format=csl&id=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      return [{
+        title: data.title || "Tanpa Judul",
+        authors: data.author ? data.author.map(a => a.family).join(', ') : "Tidak diketahui",
+        summary: data.abstract || "Tidak ada abstrak.",
+        link: data.URL || "#",
+        source: "PubMed"
+      }];
+    }
+
+    async function searchJournals() {
+      const query = document.getElementById('searchQuery').value.trim();
+      const source = document.getElementById('sourceSelect').value;
+      const resultsContainer = document.getElementById('results');
+      resultsContainer.innerHTML = "<p>🔍 Mencari jurnal, harap tunggu...</p>";
+
+      let results = [];
+      if (source === "semantic" || source === "both") results = results.concat(await fetchSemanticScholar(query));
+      if (source === "crossref" || source === "both") results = results.concat(await fetchCrossRef(query));
+      if (source === "doaj" || source === "both") results = results.concat(await fetchDOAJ(query));
+      if (source === "core" || source === "both") results = results.concat(await fetchCORE(query));
+      if (source === "pubmed" || source === "both") results = results.concat(await fetchPubMed(query));
+
+      if (results.length === 0) {
+        resultsContainer.innerHTML = "<p>😕 Tidak ditemukan hasil untuk pencarian ini.</p>";
+        return;
+      }
+
+      resultsContainer.innerHTML = results.map((r, i) => `
+        <div class="result-item" id="result-${i}">
+          <div class="result-title"><a href="${r.link}" target="_blank" class="result-link">${r.title}</a></div>
+          <div class="result-authors">👥 ${r.authors}</div>
+          <div class="result-summary">${r.summary}</div>
+          <span class="result-source">${r.source}</span>
+          <button class="ai-button" onclick="summarizeAI(${i}, \`${r.summary.replace(/`/g, '')}\`)">🧠 Ringkas dengan AI</button>
+          <div class="ai-response" id="ai-${i}"></div>
+        </div>
+      `).join('');
+    }
+
+    function summarizeAI(index, text) {
+      const aiBox = document.getElementById(`ai-${index}`);
+      aiBox.style.display = "block";
+      aiBox.innerHTML = "💭 Granite AI sedang menganalisis...";
+      setTimeout(() => {
+        aiBox.innerHTML = "🧠 <b>Ringkasan AI:</b> " + text.split(' ').slice(0, 25).join(' ') + " ...";
+      }, 1500);
+    }
+  </script>
+</body>
+</html>
